@@ -43,7 +43,9 @@
   ],
   "dependencies": {
     "chalk": "^0.5.1",
+    "debug": "^2.0.0",
     "fs-utils": "^0.5.0",
+    "get-value": "^0.2.1",
     "lodash": "^2.4.1",
     "object.reduce": "^0.1.3"
   }
