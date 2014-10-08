@@ -1,0 +1,50 @@
+{
+  "name": "dep-tree",
+  "description": "Get a flattened object of valid URLs to github repos for dependencies used in your project.",
+  "version": "0.1.0",
+  "homepage": "https://github.com/jonschlinkert/dep-tree",
+  "author": {
+    "name": "Jon Schlinkert",
+    "url": "https://github.com/jonschlinkert"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/jonschlinkert/dep-tree.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jonschlinkert/dep-tree/issues"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://github.com/jonschlinkert/dep-tree/blob/master/LICENSE-MIT"
+    }
+  ],
+  "main": "index.js",
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "scripts": {
+    "test": "mocha -R spec"
+  },
+  "devDependencies": {
+    "verb-tag-jscomments": ">= 0.2.0",
+    "verb": ">= 0.2.6",
+    "mocha": "*"
+  },
+  "keywords": [
+    "docs",
+    "documentation",
+    "generate",
+    "generator",
+    "markdown",
+    "templates",
+    "verb"
+  ],
+  "dependencies": {
+    "chalk": "^0.5.1",
+    "fs-utils": "^0.5.0",
+    "lodash": "^2.4.1",
+    "object.reduce": "^0.1.3"
+  }
+}
