@@ -28,9 +28,10 @@
     "test": "mocha -R spec"
   },
   "devDependencies": {
-    "verb-tag-jscomments": ">= 0.2.0",
+    "mocha": "*",
+    "should": "^4.0.4",
     "verb": ">= 0.2.6",
-    "mocha": "*"
+    "verb-tag-jscomments": ">= 0.2.0"
   },
   "keywords": [
     "docs",
@@ -46,6 +47,8 @@
     "debug": "^2.0.0",
     "fs-utils": "^0.5.0",
     "get-value": "^0.2.1",
+    "getobject": "^0.1.0",
+    "kind-of": "^0.1.0",
     "lodash": "^2.4.1",
     "object.reduce": "^0.1.3"
   }
