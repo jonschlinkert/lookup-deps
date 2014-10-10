@@ -44,7 +44,7 @@ npm test
 ## Usage
 
 ```js
-var deps = require('lookup-deps');
+var Deps = require('lookup-deps');
 var deps = new Deps();
 ```
 
