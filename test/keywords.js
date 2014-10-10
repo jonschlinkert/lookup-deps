@@ -11,13 +11,12 @@ var path = require('path');
 var should = require('should');
 var assert = require('assert');
 var Deps = require('..');
-var deps = new Deps();
+var deps = new Deps({root: 'test/fixtures'});
 var pkg = require(path.resolve(__dirname, '../package'));
 
-describe('exists', function () {
-  it('should return true if the dependency exists.', function () {
-    deps.exists('fs-utils').should.be.true;
-    deps.exists('fs-utils').should.not.be.false;
-    deps.exists('foo').should.be.false;
+describe('keywords', function () {
+  it('should return keywords arrays for the given names.', function () {
+    deps.keywords('fs-utils')['fs-utils'].should.be.an.array;
+    deps.keywords('fs-utils')['fs-utils'].length.should.equal(10);
   });
 });

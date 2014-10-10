@@ -1,111 +1,59 @@
-'use strict';
+/*!
+ * lookup-deps <https://github.com/jonschlinkert/lookup-deps>
+ *
+ * Copyright (c) 2014 Jon Schlinkert, contributors.
+ * Licensed under the MIT License
+ */
 
+'use strict';
 
 /**
  * Module dependencies
  */
 
-// process.env.DEBUG = 'deps';
 var fs = require('fs');
 var path = require('path');
-var chalk = require('chalk');
-var debug = require('debug')('deps');
-var getobject = require('getobject');
-var lookup = require('lookup-path');
-var findup = require('findup-sync');
-var typeOf = require('kind-of');
-var utils = require('./lib');
-var file = require('fs-utils');
+var multimatch = require('multimatch');
+var get = require('get-value');
 var _ = require('lodash');
+var utils = require('./lib');
 
-var types = ['dependencies', 'devDependencies', 'peerDependencies'];
 
 /**
- * Create a new instance of `Deps`
+ * Create a new instance of `Deps`.
  *
- * @param {Object} `config`
+ * ```js
+ * var Deps = require('lookup-deps');
+ * var deps = new Deps();
+ * ```
+ *
+ * @param {Object} `config` Optionally pass a default config object instead of `package.json`
+ *                          For now there is no reason to do this.
  * @param {Object} `options`
+ * @api public
  */
 
-function Deps(config, options) {
+function Deps(options) {
   this.options = options || {};
+  this.cwd = this.options.cwd || process.cwd();
   this.cache = {};
-
-  this.init(config);
+  this._paths = [];
+  this.init(options);
 }
 
 /**
  * Initialize Deps. Unless another config path is specified,
- * the package.json in the root of a project is loaded.
+ * the package.json in the cwd of a project is loaded.
  *
- * @param  {String} filepath
+ * @param  {String} `filepath`
  * @return {Object}
  * @api private
  */
 
-Deps.prototype.init = function(config) {
-  this.config = config || this.tryRequire('./');
-  this.config.path = this.cwd();
-  this.setPkg(this.config.name, this.config);
-};
-
-/**
- * Resolve the path to `node_modules` for a named package.
- *
- * @param  {String} `name`
- * @return {String}
- */
-
-Deps.prototype.pkg = function(cwd) {
-  return path.resolve(cwd || process.cwd(), 'package.json');
-};
-
-/**
- * Resolve the path to current working directory for package.
- *
- * @param  {String} `name`
- * @return {String}
- */
-
-Deps.prototype.dirname = function(filepath) {
-  return utils.dirname(filepath);
-};
-
-/**
- * Resolve the path to current working directory for package.
- *
- * @param  {String} `name`
- * @return {String}
- */
-
-Deps.prototype.cwd = function(cwd) {
-  return this.dirname(this.pkg(cwd));
-};
-
-/**
- * Resolve the path to `node_modules` for a named package.
- *
- * @param  {String} `name`
- * @return {String}
- */
-
-Deps.prototype.nodeModules = function(cwd) {
-  return path.join(this.cwd(cwd), 'node_modules');
-};
-
-/**
- * Attempt to require a package.json for a resolved
- * module.
- *
- * @param  {String} `filepath`
- * @return {Object}
- */
-
-Deps.prototype.tryRequire = function(cwd) {
-  try {
-    return require(this.pkg(cwd));
-  } catch(err) {}
-  return null;
+Deps.prototype.init = function(options) {
+  this.config = this.options.config || this.readPkg(this.cwd);
+  this.config.path = this._cwd();
+  this.tree(this.cwd);
 };
 
 /**
@@ -113,10 +61,11 @@ Deps.prototype.tryRequire = function(cwd) {
  *
  * @param {String} `key`
  * @param {*} `value`
+ * @api private
  */
 
 Deps.prototype.set = function(key, value) {
-  getobject.set(this.cache, key, value);
+  this.cache[key] = value;
   return this;
 };
 
@@ -125,11 +74,12 @@ Deps.prototype.set = function(key, value) {
  *
  * @param {String} `key`
  * @param {Object} `value`
+ * @api private
  */
 
 Deps.prototype.setPkg = function(key, value) {
-  if (!this.hasOwn(key)) {
-    return this.set(key, this.escape(value));
+  if (!utils.hasOwn(key)) {
+    return this.set(key, value);
   }
   return this;
 };
@@ -137,13 +87,48 @@ Deps.prototype.setPkg = function(key, value) {
 /**
  * Get a value from the cache.
  *
- * @param  {Object} key
+ * ```js
+ * // get an entire package.json
+ * deps.get('fs-utils');
+ * //=> { pkg: { name: 'fs-utils', version: '0.5.0', ... }
+ *
+ * // or, get a specific value
+ * deps.get('fs-utils', 'version');
+ * //=> '0.5.0'
+ * ```
+ *
+ * @param  {Object} `name` The module to get.
+ * @param  {String} `props` Property paths.
  * @return {Object}
+ * @api public
  */
 
-Deps.prototype.get = function(key) {
-  var args = _.flatten([].slice.call(arguments));
-  return getobject.get(this.cache, args.join('.'));
+Deps.prototype.get = function(name, props) {
+  var config = this.cache[name];
+
+  if (arguments.length === 1) {
+    return config;
+  }
+
+  return get(config.pkg, props);
+};
+
+/**
+ * Check to see if a module exists (or at least is on
+ * the cache).
+ *
+ * ```js
+ * deps.exists('fs-utils');
+ * //=> true
+ * ```
+ *
+ * @param  {String} `name` The name to check.
+ * @return {String}
+ * @api public
+ */
+
+Deps.prototype.exists = function(name) {
+  return !!this.get(name);
 };
 
 /**
@@ -151,309 +136,193 @@ Deps.prototype.get = function(key) {
  *
  * @param  {String} `name`
  * @return {String}
+ * @api private
  */
 
-Deps.prototype.tree = function(cwd, type) {
-  var o = {};
-  var pkg = this.tryRequire(cwd);
-  this.setPkg(pkg.name, pkg);
-
-  if (!this.hasOwn(pkg, 'dependencies')) {
-    return this.cache;
-  }
-
-  var keys = this.allDeps(pkg, type);
-  console.log(keys)
-
-  return this.cache;
+Deps.prototype._toPkg = function(cwd) {
+  return path.resolve(cwd || process.cwd(), 'package.json');
 };
 
 /**
- * Get the dependency tree for a project.
+ * Resolve the dirname for a module.
  *
- * @param  {String} cwd
- * @param  {String} type
- * @return {String}
- */
-
-Deps.prototype._tree = function(cwd, type) {
-  // Determine the correct path for a package.json.
-  var obj = this.pkgFile(cwd);
-  if (obj == null) {
-    return {};
-  }
-  var keys = _.keys(obj[type || this.type]);
-
-  return _.reduce(keys, function (acc, name) {
-    acc = acc || {};
-
-    var fp = this.moduleRoot(cwd, name);
-    this._push(fp, 'paths');
-
-    var pkg = this.tryRequire(fp);
-    var o = {path: fp};
-
-    if (pkg == null) {
-      acc[name] = o;
-    } else {
-      this.setPkg(name, o);
-      var child = {};
-
-      child.package = o;
-      child.path = relative(fp);
-      child.deps = this._tree(fp);
-      acc[name] = child;
-    }
-
-    return acc;
-  }.bind(this), {});
-};
-
-/**
- * Determine the correct path for a package.json.
- *
- * @param  {String} cwd
- * @return {Object}
- */
-
-Deps.prototype.pkgFile = function(cwd) {
-  var current = this.findPkg(cwd);
-
-  if (!file.exists(current)) {
-    current = this.findDependency(cwd);
-  }
-
-  if (current && file.exists(current)) {
-    current = require(current);
-    this.setPkg(current.name, current);
-    return current;
-  }
-  return null;
-};
-
-/**
- * Resolve the path to the root of a module from the
- * given `cwd`
- *
- * ```js
- * deps.moduleRoot('dep-tree', 'chalk');
- * ```
- *
- * @param  {String} `cwd`
  * @param  {String} `name`
  * @return {String}
+ * @api private
  */
 
-Deps.prototype.moduleRoot = function(cwd, name) {
-  return path.resolve(this.nodeModules(cwd), name);
-};
-
-Deps.prototype.findPkg = function (cwd) {
-  return path.resolve(cwd, 'package.json');
+Deps.prototype.dirname = function(filepath) {
+  return utils.dirname(filepath);
 };
 
 /**
- * Push a filepath on `name` on the cache.
+ * Resolve the path to current working directory for a module.
  *
- * @param  {[type]} url
- * @param  {[type]} name
- * @return {[type]}
+ * @param  {String} `filepath`
+ * @return {String}
+ * @api private
  */
 
-Deps.prototype._push = function(url, name) {
-  this.cache[name] = this.cache[name] || [];
-  return this.cache[name].push(url);
+Deps.prototype._cwd = function(filepath) {
+  return this.dirname(this._toPkg(filepath));
 };
 
 /**
- * Set a value on the cache.
+ * List the dependencies in a package.json.
  *
- * @param {String} `key`
- * @param {*} `value`
+ * @param  {Object} `pkg`
+ * @return {Object}
+ * @api private
  */
 
-Deps.prototype.deps = function(name, type) {
-  var pkg = this.cache[name];
-  if (this.hasOwn(pkg, type)) {
-    return pkg[type];
+Deps.prototype._deps = function(pkg) {
+  if (utils.hasOwn(pkg, 'dependencies')) {
+    return pkg.dependencies;
   }
   return {};
 };
 
-Deps.prototype._deps = function(pkg, type) {
-  if (pkg && this.hasOwn(pkg, type)) {
-    return this.keys(pkg[type]);
-  }
-  return [];
-};
-
-Deps.prototype.allDeps = function(pkg) {
-  return types.reduce(function (acc, type) {
-    return acc.concat(this._deps(pkg, type));
-  }.bind(this), []);
-};
-
-Deps.prototype.dependencies = function(pkg) {
-  return this._deps(pkg, 'dependencies');
-};
-
-Deps.prototype.devDependencies = function(pkg) {
-  return this._deps(pkg, 'devDependencies');
-};
-
-Deps.prototype.peerDependencies = function(pkg) {
-  return this._deps(pkg, 'peerDependencies');
-};
-
-Deps.prototype.exists = function(cwd) {
-  var dir = this.cwd(cwd);
-  console.log(dir)
-  return file.exists(dir);
-};
-
-
-Deps.prototype.lookup = function(name, key, prop) {
-  if (key == null) {
-    return this.get(name, 'dependencies');
-  }
-  var dep = this.get(name, key);
-  if (prop == null) {
-    return dep;
-  }
-  return _.reduce(dep, function (acc, value, key) {
-    acc[key] = prop ? this.get(key, prop) : dep;
-    return acc;
-  }.bind(this), {});
-};
-
-Deps.prototype.filter = function(list, omit) {
-  return _.filter(this.cache, function (pkg) {
-    return list.indexOf(pkg.name) !== -1;
-  }).map(function (pkg) {
-    return _.omit(pkg, omit);
-  });
-};
-
-Deps.prototype.list = function(name, method) {
-  return this.cache[name].map(function (fp) {
-    var fn = method === 'relative'
-      ? relative
-      : path[method];
-
-    return file.forwardSlash(fn ? fn(fp) : fp);
-  }.bind(this)).sort();
-};
-
-Deps.prototype.paths = function(method) {
-  return this.list('paths', method);
-};
-
-Deps.prototype.homepage = function(method) {
-  return this.list('homepage', method);
-};
-
-Deps.prototype.findDependency = function(filepath) {
-  var name = path.basename(filepath);
-
-  // console.log(this.lookup(name, 'path'))
-  // console.log(chalk.bold('%s'), name)
-  // console.log(chalk.cyan('%s'), filepath)
-  // console.log(chalk.yellow('%s'), this.isCurrentPath(filepath))
-
-  var res = this.lookup(name, 'path') + '/package.json';
-  if (file.exists(res)) {
-    return res;
-  }
-  // return null;
-
-  var pkgs = this.list('paths');
-  var len = pkgs.length;
-
-  for (var i = 0; i < len; i++) {
-    var fp = pkgs[i];
-    if (fp.indexOf(name) !== -1) {
-      return path.resolve(fp, 'package.json');
-    }
-  }
-  return null;
-};
-
-
-
-Deps.prototype.escape = function(pkg) {
-  return _.transform(pkg, function (acc, value, key) {
-    if (key === 'name' && /\./.test(value)) {
-      value = value.replace(/\./g, '\\.');
-    }
-    acc[key] = value;
-  }, {});
-};
-
-
-Deps.prototype.isCurrentPath = function(fp) {
-  var current = normalize(process.cwd());
-  var compare = normalize(fp);
-
-  if (compare === current) {
-    return true;
-  }
-  return false;
-};
-
-
 /**
- * Utils
- */
-
-
-function relative(filepath) {
-  var rel = path.relative(process.cwd(), filepath);
-  return file.forwardSlash(rel);
-}
-
-function normalize(fp) {
-  return file.forwardSlash(fp);
-}
-
-
-
-
-/**
- * Set or get an option.
+ * Get the keys for `dependencies` for the specified package.
  *
  * ```js
- * deps.option('a', true)
- * deps.option('a')
- * // => true
+ * deps.depsKeys('fs-utils');
+ * //=> [ 'is-absolute', 'kind-of', 'relative', ... ]
  * ```
  *
- * @param {String} `key` The option name.
- * @param {*} `value` The value to set.
- * @return {*|Object} Returns `value` if `key` is supplied, or `Deps` for chaining when an option is set.
+ * @param  {Object|String} `config` The name of the module, or package.json config object.
+ * @return {Object}
  * @api public
  */
 
-Deps.prototype.option = function(key, value) {
-  var args = [].slice.call(arguments);
-
-  if (args.length === 1 && typeof key === 'string') {
-    return this.options[key];
+Deps.prototype.depsKeys = function(config) {
+  if (typeof config === 'string') {
+    config = this.cache[config].pkg;
   }
-
-  if (typeOf(key) === 'object') {
-    _.extend.apply(_, [this.options].concat(args));
-    return this;
-  }
-
-  this.options[key] = value;
-  return this;
+  var deps = this._deps(config || this.config);
+  return Object.keys(deps);
 };
 
 /**
- * Return the keys on `obj` or `this.cache`.
+ * Require a package.json, silently fail.
+ *
+ * @param  {Object} `filepath`
+ * @return {Object}
+ * @api private
+ */
+
+Deps.prototype.readPkg = function(filepath) {
+  try {
+    var fp = path.resolve(filepath, 'package.json');
+    return require(fp);
+  } catch(err) {
+    return {};
+  }
+};
+
+/**
+ * Attempt to require a file, silently fail.
+ *
+ * @param  {Object} `pkg`
+ * @return {Object}
+ * @api private
+ */
+
+Deps.prototype.tryRequire = function(filepath) {
+  try {
+    return require(filepath);
+  } catch (err) {
+    return {};
+  }
+};
+
+/**
+ * Resolve a path to a missing dependency. This is extremely
+ * inadequate for anything more than basics.
+ *
+ * For now, all we're doing is keeping an array of resolved
+ * filepaths for modules, then, when a module is missing in
+ * the tree, we search the array of existing paths to see if
+ * the module is there. It's hit and miss, since we don't wait
+ * for the entire tree to be searched. We'll need to revisit.
+ *
+ * @param  {String} `filepath`
+ * @return {String}
+ * @api private
+ */
+
+Deps.prototype.findPath = function(filepath) {
+  var name = path.basename(filepath);
+  return utils.first(this._paths, function(fp) {
+    return name === path.basename(fp);
+  });
+};
+
+/**
+ * Get the resolved path to the root of a module.
+ *
+ * @param  {String} `cwd`
+ * @param  {String} `filepath`
+ * @return {String}
+ * @api private
+ */
+
+Deps.prototype.moduleRoot = function(cwd, filepath) {
+  var res = path.join(cwd, 'node_modules', filepath);
+  if (fs.existsSync(res)) {
+    this._paths.push(res);
+    return utils.slashify(res);
+  }
+  return this.findPath(res) || null;
+};
+
+/**
+ * Build a dependency tree by recursively reading in
+ * package.json files for projects in node_modules.
  *
  * ```js
- * deps.keys();
+ * deps.tree('./');
+ * ```
+ *
+ * @param  {String} `cwd` The root directory to search from.
+ * @return {Object}
+ * @api public
+ */
+
+Deps.prototype.tree = function(cwd) {
+  var pkg = this.readPkg(cwd);
+  var deps = this.depsKeys(pkg);
+  var tree = {};
+
+  if (deps.length) {
+    var len = deps.length;
+    for (var i = 0; i < len; i++) {
+      var name = deps[i];
+      var key = utils.escapeDot(name);
+
+      var o = {pkg: null, deps: null, pkgpath: null};
+      o.path = this.moduleRoot(cwd, name);
+      if (o.path != null) {
+        o.pkgpath = path.resolve(o.path, 'package.json');
+        o.pkg = this.tryRequire(o.pkgpath);
+        o.deps = this.tree(o.path);
+      }
+
+      this.setPkg(key, o);
+      tree[key] = o;
+    }
+  }
+  return tree;
+};
+
+/**
+ * Return a list of names of all resolved packages from node_modules
+ * that match the given glob patterns. If no pattern is provided the
+ * entire list is returned.
+ *
+ * ```js
+ * deps.names('fs-*');
+ * //=> ['fs-utils']
  * ```
  *
  * @param {Object} `obj` Optionally pass an object.
@@ -461,32 +330,179 @@ Deps.prototype.option = function(key, value) {
  * @api public
  */
 
-Deps.prototype.keys = function(o) {
-  return Object.keys(o || this.cache);
+Deps.prototype.names = function(patterns) {
+  var keys = Object.keys(this.cache);
+  if (arguments.length === 0) {
+    return keys;
+  }
+  return multimatch(keys, patterns);
+};
+
+/**
+ * Lookup a module or modules using glob patterns, and return
+ * an object filtered to have only the specified `props`. Note
+ * that `package.json` objects are stored on the `pkg` property
+ * for each module.
+ *
+ * Properties are specified using object paths:
+ *
+ * ```js
+ * deps.find('for-*', 'pkg.repository.url');
+ *
+ * // results in:
+ * // { 'for-own': 'git://github.com/jonschlinkert/for-own.git',
+ * //   'for-in': 'git://github.com/jonschlinkert/for-in.git' }
+ * ```
+ *
+ * @param  {String} `patterns`
+ * @param  {String} `props`
+ * @return {Object}
+ * @api public
+ */
+
+Deps.prototype.find = function(patterns, props) {
+  return _.reduce(this.names(patterns), function (acc, name) {
+    acc[name] = get(this.cache[name], props) || null;
+    return acc;
+  }.bind(this), {});
+};
+
+/**
+ * A convenience proxy for the `.find()` method to specifically search
+ * the `pkg` object.
+ *
+ * ```js
+ * deps.lookup('for-*', 'repository.url');
+ *
+ * // results in:
+ * // { 'for-own': 'git://github.com/jonschlinkert/for-own.git',
+ * //   'for-in': 'git://github.com/jonschlinkert/for-in.git' }
+ * ```
+ *
+ * @param  {String} `patterns`
+ * @param  {String} `props`
+ * @return {Object}
+ * @api public
+ */
+
+Deps.prototype.lookup = function(patterns, props) {
+  return this.find(patterns, 'pkg.' + props);
+};
+
+/**
+ * Get the path to a module or modules, relative to the
+ * current working directory. Glob patterns may be used.
+ *
+ * ```js
+ * deps.paths('*');
+ * ```
+ *
+ * @param  {String} `patterns`
+ * @return {String}
+ * @api public
+ */
+
+Deps.prototype.paths = function(patterns) {
+  return this.find(patterns, 'path');
+};
+
+/**
+ * Get the package.json objects for the given module or modules.
+ * Glob patterns may be used.
+ *
+ * ```js
+ * deps.pkg('fs-utils');
+ * ```
+ *
+ * @param  {String} `patterns`
+ * @return {String}
+ * @api public
+ */
+
+Deps.prototype.pkg = function(patterns) {
+  return this.find(patterns, 'pkg');
+};
+
+/**
+ * Get the `dependencies` for the given modules. Glob patterns
+ * may be used.
+ *
+ * ```js
+ * deps.dependencies('multi*');
+ * //=> { multimatch: { 'array-differ': '^1.0.0', ... } }
+ * ```
+ *
+ * @param  {String} `patterns`
+ * @return {Object}
+ * @api public
+ */
+
+Deps.prototype.dependencies = function(patterns) {
+  return this.lookup(patterns, 'dependencies');
+};
+
+/**
+ * Get the `keywords` for the given modules.
+ *
+ * ```js
+ * deps.keywords('multi*');
+ * //=> { multimatch: [ 'minimatch', 'match', ... ] }
+ * ```
+ *
+ * @param  {String} `patterns`
+ * @return {String}
+ * @api public
+ */
+
+Deps.prototype.keywords = function(patterns) {
+  return this.lookup(patterns, 'keywords');
+};
+
+/**
+ * Get the `homepage` for the specified modules.
+ *
+ * ```js
+ * deps.homepage('fs-*');
+ * //=> { 'fs-utils': 'https://github.com/assemble/fs-utils' }
+ * ```
+ *
+ * @param  {String} `patterns`
+ * @return {String}
+ * @api public
+ */
+
+Deps.prototype.homepage = function(patterns) {
+  return this.lookup(patterns, 'homepage');
+};
+
+/**
+ * Get a list of markdown-formatted links, from the
+ * `homepage` properties of the specified modules.
+ *
+ * ```js
+ * deps.links('fs-*');
+ * //=> [fs-utils](https://github.com/assemble/fs-utils)
+ * ```
+ *
+ * @param  {String} `patterns`
+ * @return {String}
+ * @api public
+ */
+
+Deps.prototype.links = function(pattern) {
+  pattern = pattern || this.config.name;
+  var obj = this.lookup(pattern, 'homepage');
+  var str = '';
+
+  _.forOwn(obj, function (value, key) {
+    str += '[' + key + '](' + value + ')\n';
+  });
+  return str;
 };
 
 
 /**
- * Return true if `key` is an own, enumerable property
- * of `this.cache` or the given `obj`.
- *
- * ```js
- * app.hasOwn([key]);
- * ```
- *
- * @param  {String} `key`
- * @param  {Object} `obj` Optionally pass an object to check.
- * @return {Boolean}
- * @api public
+ * Expose `Deps`
  */
-
-Deps.prototype.hasOwn = function(o, key) {
-  if (typeof o === 'string') {
-    key = o;
-    o = this.cache;
-  }
-  return {}.hasOwnProperty.call(o, key);
-};
-
 
 module.exports = Deps;

@@ -1,23 +1,23 @@
 {
-  "name": "dep-tree",
-  "description": "Get a flattened object of valid URLs to github repos for dependencies used in your project.",
+  "name": "lookup-deps",
+  "description": "Simple API for getting metadata from locally installed npm packages (in `node_modules`).",
   "version": "0.1.0",
-  "homepage": "https://github.com/jonschlinkert/dep-tree",
+  "homepage": "https://github.com/jonschlinkert/lookup-deps",
   "author": {
     "name": "Jon Schlinkert",
     "url": "https://github.com/jonschlinkert"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/jonschlinkert/dep-tree.git"
+    "url": "git://github.com/jonschlinkert/lookup-deps.git"
   },
   "bugs": {
-    "url": "https://github.com/jonschlinkert/dep-tree/issues"
+    "url": "https://github.com/jonschlinkert/lookup-deps/issues"
   },
   "licenses": [
     {
       "type": "MIT",
-      "url": "https://github.com/jonschlinkert/dep-tree/blob/master/LICENSE-MIT"
+      "url": "https://github.com/jonschlinkert/lookup-deps/blob/master/LICENSE-MIT"
     }
   ],
   "main": "index.js",
@@ -34,23 +34,27 @@
     "verb-tag-jscomments": ">= 0.2.0"
   },
   "keywords": [
-    "docs",
-    "documentation",
-    "generate",
-    "generator",
-    "markdown",
-    "templates",
-    "verb"
+    "dep",
+    "dependencies",
+    "dependency",
+    "deps",
+    "find",
+    "graph",
+    "lookup",
+    "module",
+    "modules",
+    "node",
+    "node-modules",
+    "package",
+    "packages",
+    "pkg",
+    "resolve",
+    "tree"
   ],
   "dependencies": {
-    "chalk": "^0.5.1",
-    "debug": "^2.0.0",
     "fs-utils": "^0.5.0",
     "get-value": "^0.2.1",
-    "getobject": "^0.1.0",
-    "kind-of": "^0.1.0",
     "lodash": "^2.4.1",
-    "lookup-path": "^0.3.0",
-    "object.reduce": "^0.1.3"
+    "multimatch": "^1.0.0"
   }
 }
