@@ -16,8 +16,8 @@ var pkg = require(path.resolve(__dirname, '../package'));
 
 describe('exists', function () {
   it('should return true if the dependency exists.', function () {
-    deps.exists('dep-tree').should.be.true;
-    deps.exists('dep-tree').should.not.be.false;
+    deps.exists('fs-utils').should.be.true;
+    deps.exists('fs-utils').should.not.be.false;
     deps.exists('foo').should.be.false;
   });
 });

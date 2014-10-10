@@ -11,16 +11,12 @@ var path = require('path');
 var should = require('should');
 var assert = require('assert');
 var Deps = require('..');
-var deps = new Deps();
+var deps = new Deps({root: 'test/fixtures'});
 var pkg = require(path.resolve(__dirname, '../package'));
 
-describe('deps', function () {
-  it('should load the current package.json onto the cache.', function () {
-    deps.get('dep-tree').should.be.an.object;
-    deps.get('dep-tree').homepage.should.equal(pkg.homepage);
-  });
-
-  it('should return a flattened dependency tree', function () {
-    deps.tree('dep-tree')
+describe('keywords', function () {
+  it('should return keywords arrays for the given names.', function () {
+    deps.keywords('fs-utils')['fs-utils'].should.be.an.array;
+    deps.keywords('fs-utils')['fs-utils'].length.should.equal(10);
   });
 });
