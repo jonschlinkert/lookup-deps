@@ -1,6 +1,5 @@
 'use strict';
 
-
 /**
  * Module dependencies
  */
@@ -16,9 +15,7 @@ var findup = require('findup-sync');
 var typeOf = require('kind-of');
 var utils = require('./lib');
 var file = require('fs-utils');
-var _ = require('lodash');
 
-var types = ['dependencies', 'devDependencies', 'peerDependencies'];
 
 /**
  * Create a new instance of `Deps`

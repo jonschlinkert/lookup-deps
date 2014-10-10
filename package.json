@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "mocha": "*",
+    "object.filter": "^0.1.1",
     "should": "^4.0.4",
     "verb": ">= 0.2.6",
     "verb-tag-jscomments": ">= 0.2.0"
@@ -45,12 +46,16 @@
   "dependencies": {
     "chalk": "^0.5.1",
     "debug": "^2.0.0",
+    "for-own": "^0.1.2",
     "fs-utils": "^0.5.0",
     "get-value": "^0.2.1",
     "getobject": "^0.1.0",
     "kind-of": "^0.1.0",
     "lodash": "^2.4.1",
     "lookup-path": "^0.3.0",
+    "make-iterator": "^0.1.1",
+    "minimatch": "^1.0.0",
+    "multimatch": "^1.0.0",
     "object.reduce": "^0.1.3"
   }
 }
