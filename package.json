@@ -1,7 +1,7 @@
 {
   "name": "lookup-deps",
   "description": "Simple API for getting metadata from locally installed npm packages (in `node_modules`).",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "homepage": "https://github.com/jonschlinkert/lookup-deps",
   "author": {
     "name": "Jon Schlinkert",
