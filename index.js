@@ -11,7 +11,10 @@ var path = require('path');
 var chalk = require('chalk');
 var debug = require('debug')('deps');
 var getobject = require('getobject');
+var lookup = require('lookup-path');
+var findup = require('findup-sync');
 var typeOf = require('kind-of');
+var utils = require('./lib');
 var file = require('fs-utils');
 var _ = require('lodash');
 
@@ -28,7 +31,7 @@ function Deps(config, options) {
   this.options = options || {};
   this.cache = {};
 
-  this.init(config || 'package.json');
+  this.init(config);
 }
 
 /**
@@ -40,73 +43,68 @@ function Deps(config, options) {
  * @api private
  */
 
-Deps.prototype.init = function(filepath) {
-  var config = configPath(filepath);
-  config.path = process.cwd();
-  this.setPkg(config.name, config);
+Deps.prototype.init = function(config) {
+  this.config = config || this.tryRequire('./');
+  this.config.path = this.cwd();
+  this.setPkg(this.config.name, this.config);
 };
 
-
 /**
- * Get the dependency tree for a project.
+ * Resolve the path to `node_modules` for a named package.
  *
- * @param  {String} cwd
- * @param  {String} type
+ * @param  {String} `name`
  * @return {String}
  */
 
-Deps.prototype.tree = function(cwd, type) {
-  var pkg = this.currentPkg(cwd)
-
-  var arr = _.keys(pkg[type || this.type]);
-  console.log(this.dependencies(pkg));
-  console.log(this.devDependencies(pkg));
-  var tree = {};
-
-  return _.reduce(arr, function (acc, name) {
-    acc = acc || {};
-
-    var fp = this.packageFile(cwd, name);
-    this._push(fp, 'paths');
-    var child = {};
-
-    var obj = this.tryRequire(fp);
-    if (obj == null) {
-      acc[name] = {path: fp};
-      return acc;
-    }
-
-    obj.path = fp;
-    this.setPkg(name, obj);
-
-    child.package = obj;
-    child.path = relative(fp);
-    child.deps = this.tree(fp);
-    acc[name] = child;
-    return acc;
-  }.bind(this), {});
+Deps.prototype.pkg = function(cwd) {
+  return path.resolve(cwd || process.cwd(), 'package.json');
 };
 
 /**
- * Determine the correct path for the "current" dependency
- * in the loop.
+ * Resolve the path to current working directory for package.
  *
- * @param  {String} cwd
+ * @param  {String} `name`
+ * @return {String}
+ */
+
+Deps.prototype.dirname = function(filepath) {
+  return utils.dirname(filepath);
+};
+
+/**
+ * Resolve the path to current working directory for package.
+ *
+ * @param  {String} `name`
+ * @return {String}
+ */
+
+Deps.prototype.cwd = function(cwd) {
+  return this.dirname(this.pkg(cwd));
+};
+
+/**
+ * Resolve the path to `node_modules` for a named package.
+ *
+ * @param  {String} `name`
+ * @return {String}
+ */
+
+Deps.prototype.nodeModules = function(cwd) {
+  return path.join(this.cwd(cwd), 'node_modules');
+};
+
+/**
+ * Attempt to require a package.json for a resolved
+ * module.
+ *
+ * @param  {String} `filepath`
  * @return {Object}
  */
 
-Deps.prototype.currentPkg = function(cwd) {
-  var current = this.findPkg(cwd);
-
-  if (!file.exists(current)) {
-    current = this.findDependency(cwd);
-  }
-
-  if (current && file.exists(current)) {
-    current = require(current);
-    this.setPkg(current.name, current);
-    return current;
-  }
+Deps.prototype.tryRequire = function(cwd) {
+  try {
+    return require(this.pkg(cwd));
+  } catch(err) {}
   return null;
 };
 
@@ -149,6 +147,112 @@ Deps.prototype.get = function(key) {
 };
 
 /**
+ * Resolve the path to `node_modules` for a named package.
+ *
+ * @param  {String} `name`
+ * @return {String}
+ */
+
+Deps.prototype.tree = function(cwd, type) {
+  var o = {};
+  var pkg = this.tryRequire(cwd);
+  this.setPkg(pkg.name, pkg);
+
+  if (!this.hasOwn(pkg, 'dependencies')) {
+    return this.cache;
+  }
+
+  var keys = this.allDeps(pkg, type);
+  console.log(keys)
+
+  return this.cache;
+};
+
+/**
+ * Get the dependency tree for a project.
+ *
+ * @param  {String} cwd
+ * @param  {String} type
+ * @return {String}
+ */
+
+Deps.prototype._tree = function(cwd, type) {
+  // Determine the correct path for a package.json.
+  var obj = this.pkgFile(cwd);
+  if (obj == null) {
+    return {};
+  }
+  var keys = _.keys(obj[type || this.type]);
+
+  return _.reduce(keys, function (acc, name) {
+    acc = acc || {};
+
+    var fp = this.moduleRoot(cwd, name);
+    this._push(fp, 'paths');
+
+    var pkg = this.tryRequire(fp);
+    var o = {path: fp};
+
+    if (pkg == null) {
+      acc[name] = o;
+    } else {
+      this.setPkg(name, o);
+      var child = {};
+
+      child.package = o;
+      child.path = relative(fp);
+      child.deps = this._tree(fp);
+      acc[name] = child;
+    }
+
+    return acc;
+  }.bind(this), {});
+};
+
+/**
+ * Determine the correct path for a package.json.
+ *
+ * @param  {String} cwd
+ * @return {Object}
+ */
+
+Deps.prototype.pkgFile = function(cwd) {
+  var current = this.findPkg(cwd);
+
+  if (!file.exists(current)) {
+    current = this.findDependency(cwd);
+  }
+
+  if (current && file.exists(current)) {
+    current = require(current);
+    this.setPkg(current.name, current);
+    return current;
+  }
+  return null;
+};
+
+/**
+ * Resolve the path to the root of a module from the
+ * given `cwd`
+ *
+ * ```js
+ * deps.moduleRoot('dep-tree', 'chalk');
+ * ```
+ *
+ * @param  {String} `cwd`
+ * @param  {String} `name`
+ * @return {String}
+ */
+
+Deps.prototype.moduleRoot = function(cwd, name) {
+  return path.resolve(this.nodeModules(cwd), name);
+};
+
+Deps.prototype.findPkg = function (cwd) {
+  return path.resolve(cwd, 'package.json');
+};
+
+/**
  * Push a filepath on `name` on the cache.
  *
  * @param  {[type]} url
@@ -168,6 +272,27 @@ Deps.prototype._push = function(url, name) {
  * @param {*} `value`
  */
 
+Deps.prototype.deps = function(name, type) {
+  var pkg = this.cache[name];
+  if (this.hasOwn(pkg, type)) {
+    return pkg[type];
+  }
+  return {};
+};
+
+Deps.prototype._deps = function(pkg, type) {
+  if (pkg && this.hasOwn(pkg, type)) {
+    return this.keys(pkg[type]);
+  }
+  return [];
+};
+
+Deps.prototype.allDeps = function(pkg) {
+  return types.reduce(function (acc, type) {
+    return acc.concat(this._deps(pkg, type));
+  }.bind(this), []);
+};
+
 Deps.prototype.dependencies = function(pkg) {
   return this._deps(pkg, 'dependencies');
 };
@@ -180,20 +305,12 @@ Deps.prototype.peerDependencies = function(pkg) {
   return this._deps(pkg, 'peerDependencies');
 };
 
-Deps.prototype._deps = function(pkg, type) {
-  if (pkg && this.hasOwn(pkg, type)) {
-    return this.keys(pkg[type]);
-  }
-  return [];
+Deps.prototype.exists = function(cwd) {
+  var dir = this.cwd(cwd);
+  console.log(dir)
+  return file.exists(dir);
 };
 
-Deps.prototype.deps = function(name, type) {
-  var pkg = this.cache[name];
-  if (this.hasOwn(pkg, type)) {
-    return pkg[type];
-  }
-  return {};
-};
 
 Deps.prototype.lookup = function(name, key, prop) {
   if (key == null) {
@@ -235,18 +352,6 @@ Deps.prototype.homepage = function(method) {
   return this.list('homepage', method);
 };
 
-Deps.prototype.nodeModules = function(cwd) {
-  return path.join(cwd, 'node_modules');
-};
-
-Deps.prototype.packageFile = function(cwd, name) {
-  return path.resolve(this.nodeModules(cwd), name);
-};
-
-Deps.prototype.findPkg = function (cwd) {
-  return path.resolve(cwd, 'package.json');
-};
-
 Deps.prototype.findDependency = function(filepath) {
   var name = path.basename(filepath);
 
@@ -273,13 +378,6 @@ Deps.prototype.findDependency = function(filepath) {
   return null;
 };
 
-Deps.prototype.tryRequire = function(filepath) {
-  var fp = path.join(filepath, 'package.json');
-  if (file.exists(fp)) {
-    return require(fp);
-  }
-  return null;
-};
 
 
 Deps.prototype.escape = function(pkg) {
@@ -317,10 +415,6 @@ function normalize(fp) {
   return file.forwardSlash(fp);
 }
 
-function configPath(filepath) {
-  var fp = path.resolve(process.cwd(), filepath);
-  return require(fp);
-}
 
 
 
