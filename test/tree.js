@@ -1,5 +1,5 @@
 /*!
- * dep-tree <https://github.com/jonschlinkert/dep-tree>
+ * lookup-deps <https://github.com/jonschlinkert/lookup-deps>
  *
  * Copyright (c) 2014 Jon Schlinkert, contributors.
  * Licensed under the MIT License
@@ -16,7 +16,7 @@ var pkg = require(path.resolve(__dirname, '../package'));
 
 describe('deps', function () {
   it('should return a flattened dependency tree', function () {
-    deps.tree('dep-tree').should.be.an.object;
+    deps.tree('lookup-deps').should.be.an.object;
   });
 });
 

@@ -1,5 +1,5 @@
 /*!
- * dep-tree <https://github.com/jonschlinkert/dep-tree>
+ * lookup-deps <https://github.com/jonschlinkert/lookup-deps>
  *
  * Copyright (c) 2014 Jon Schlinkert, contributors.
  * Licensed under the MIT License

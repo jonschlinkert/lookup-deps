@@ -4,6 +4,9 @@ var _ = require('lodash');
 var pkg = require('./package.json');
 
 
+// console.log(deps.get('fs-utils'));
+// console.log(deps.depsKeys('fs-utils'));
+// console.log(deps.get('fs-utils', 'version'));
 console.log(deps.links('fs-utils'));
 
 // [fs-utils](https://github.com/assemble/fs-utils)
