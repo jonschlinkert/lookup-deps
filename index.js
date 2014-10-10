@@ -110,7 +110,7 @@ Deps.prototype.get = function(name, props) {
     return config;
   }
 
-  return get(config.pkg, props);
+  return this.lookup(name, props);
 };
 
 /**
