@@ -1,6 +1,5 @@
 # lookup-deps [![NPM version](https://badge.fury.io/js/lookup-deps.svg)](http://badge.fury.io/js/lookup-deps)
 
-
 > Simple API for getting metadata from locally installed npm packages (in `node_modules`).
 
 In a nutshell, this scans node_modules and builds an object that represents a basic dependency graph of locally installed packages. Rather than walking directories, this builds the tree by directly referencing dependencies listed in `package.json` of each project, which makes it pretty fast.
@@ -116,7 +115,7 @@ deps.depsKeys('fs-utils');
 Find a package.json for the given module by `name`, starting
 the search at the given `cwd`.
 
-### [.tree](index.js#L332)
+### [.tree](index.js#L335)
 
 Build a dependency tree by recursively reading in package.json files for projects in node_modules.
 
@@ -127,30 +126,7 @@ Build a dependency tree by recursively reading in package.json files for project
 deps.tree('./');
 ```
 
-### [.getParents](index.js#L380)
-
-Returns an object of all modules that have the given module as a dependency. Glob patterns may be used for filtering.
-
-* `patterns` **{String|Array}**: Glob patterns to use for filtering.    
-* `returns` **{Object}**: Object of parent modules.  
-
-```js
-deps.getParents('*');
-```
-
-### [.names](index.js#L399)
-
-Return a list of names of all resolved packages from node_modules that match the given glob patterns. If no pattern is provided the entire list is returned.
-
-* `patterns` **{String|Array}**: Glob patterns to use for filtering.    
-* `returns` **{Array}**: Array of keys.  
-
-```js
-deps.names('fs-*');
-//=> ['fs-utils']
-```
-
-### [.filter](index.js#L425)
+### [.filter](index.js#L391)
 
 Filter the entire `cache` object to have only packages with names that match the given glob patterns.
 
@@ -170,7 +146,30 @@ deps.filter('fs-*', ['*', '!readme']);
 //=> {'fs-utils': {...}}
 ```
 
-### [.find](index.js#L462)
+### [.getParents](index.js#L420)
+
+Returns an object of all modules that have the given module as a dependency. Glob patterns may be used for filtering.
+
+* `patterns` **{String|Array}**: Glob patterns to use for filtering.    
+* `returns` **{Object}**: Object of parent modules.  
+
+```js
+deps.getParents('*');
+```
+
+### [.names](index.js#L439)
+
+Return a list of names of all resolved packages from node_modules that match the given glob patterns. If no pattern is provided the entire list is returned.
+
+* `patterns` **{String|Array}**: Glob patterns to use for filtering.    
+* `returns` **{Array}**: Array of keys.  
+
+```js
+deps.names('fs-*');
+//=> ['fs-utils']
+```
+
+### [.find](index.js#L465)
 
 Find a module or modules using glob patterns, and return an object filtered to have only the specified `props`. Note that `package.json` objects are stored on the `pkg` property for each module.
 
@@ -188,7 +187,7 @@ deps.find('for-*', 'pkg.repository.url');
 //   'for-in': 'git://github.com/jonschlinkert/for-in.git' }
 ```
 
-### [.lookup](index.js#L487)
+### [.lookup](index.js#L490)
 
 A convenience proxy for the `.find()` method to specifically search the `pkg` object of each module on the cache.
 
@@ -204,7 +203,7 @@ deps.lookup('for-*', 'repository.url');
 //   'for-in': 'git://github.com/jonschlinkert/for-in.git' }
 ```
 
-### [.paths](index.js#L504)
+### [.paths](index.js#L507)
 
 Get the path to a module or modules, relative to the current working directory. Glob patterns may be used.
 
@@ -215,7 +214,7 @@ Get the path to a module or modules, relative to the current working directory. 
 deps.paths('*');
 ```
 
-### [.pkg](index.js#L521)
+### [.pkg](index.js#L524)
 
 Get the package.json objects for the given module or modules. Glob patterns may be used.
 
@@ -226,7 +225,7 @@ Get the package.json objects for the given module or modules. Glob patterns may 
 deps.pkg('fs-utils');
 ```
 
-### [.dependencies](index.js#L539)
+### [.dependencies](index.js#L542)
 
 Get the `dependencies` for the given modules. Glob patterns may be used.
 
@@ -238,7 +237,7 @@ deps.dependencies('multi*');
 //=> { multimatch: { 'array-differ': '^1.0.0', ... } }
 ```
 
-### [.keywords](index.js#L556)
+### [.keywords](index.js#L559)
 
 Get the `keywords` for the given modules.
 
@@ -250,7 +249,7 @@ deps.keywords('multi*');
 //=> { multimatch: [ 'minimatch', 'match', ... ] }
 ```
 
-### [.homepage](index.js#L573)
+### [.homepage](index.js#L576)
 
 Get the `homepage` for the specified modules.
 
@@ -262,7 +261,7 @@ deps.homepage('fs-*');
 //=> { 'fs-utils': 'https://github.com/assemble/fs-utils' }
 ```
 
-### [.links](index.js#L591)
+### [.links](index.js#L594)
 
 Get a list of markdown-formatted links, from the `homepage` properties of the specified modules.
 

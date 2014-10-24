@@ -13,7 +13,7 @@
 
 var fs = require('fs');
 var path = require('path');
-var findup = require('findup-sync');
+var findup = require('look-up');
 var filterKeys = require('filter-keys');
 var filterObj = require('filter-object');
 var deepFilter = require('deep-filter-object');
@@ -267,9 +267,7 @@ Lookup.prototype.findPath = function(filepath) {
  */
 
 Lookup.prototype.findPkg = function(name, cwd) {
-  return findup('**/' + name + '/package.json', {
-    cwd: cwd
-  });
+  return findup('**/' + name + '/package.json', cwd);
 };
 
 /**
@@ -299,10 +297,11 @@ Lookup.prototype.parent = function(filepath) {
 
 Lookup.prototype.moduleRoot = function(cwd, fp) {
   var res = path.join(cwd, 'node_modules', fp);
+  res = utils.slashify(res);
 
   if (fs.existsSync(res)) {
     this._paths.push(res);
-    return utils.slashify(res);
+    return res;
   }
 
   res = this.findPath(res);
@@ -311,7 +310,11 @@ Lookup.prototype.moduleRoot = function(cwd, fp) {
   }
 
   if (this.options.findup) {
-    return path.dirname(this.findPkg(fp, cwd));
+    var found = this.findPkg(fp, cwd);
+    if (found == null) {
+      return null;
+    }
+    return found;
   }
   return null;
 };
@@ -345,8 +348,6 @@ Lookup.prototype.tree = function(cwd) {
       var o = {pkg: null, deps: null, pkgpath: null};
       o.path = this.moduleRoot(cwd, name);
 
-      this.parents[key] = this.parents[key] || {};
-
       if (o.path != null) {
         o.pkgpath = path.resolve(o.path, 'package.json');
         o.pkg = this.tryRequire(o.pkgpath);
@@ -354,50 +355,15 @@ Lookup.prototype.tree = function(cwd) {
       }
 
       var parent = this.parent(o.path);
+      this.parents[key] = this.parents[key] || {};
       this.parents[key][parent] = sortObj(o, ['path', 'pkgpath', 'deps', 'pkg']);
 
       this.setPkg(key, o);
       tree[key] = o;
     }
   }
+
   return tree;
-};
-
-/**
- * Returns an object of all modules that have the given
- * module as a dependency. Glob patterns may be used
- * for filtering.
- *
- * ```js
- * deps.getParents('*');
- * ```
- *
- * @param  {String|Array} `patterns` Glob patterns to use for filtering.
- * @return {Object} Object of parent modules.
- * @api public
- */
-
-Lookup.prototype.getParents = function(patterns) {
-  return filterObj(this.parents, patterns);
-};
-
-/**
- * Return a list of names of all resolved packages from node_modules
- * that match the given glob patterns. If no pattern is provided the
- * entire list is returned.
- *
- * ```js
- * deps.names('fs-*');
- * //=> ['fs-utils']
- * ```
- *
- * @param {String|Array} `patterns` Glob patterns to use for filtering.
- * @return {Array} Array of keys.
- * @api public
- */
-
-Lookup.prototype.names = function(patterns) {
-  return filterKeys(this.cache, patterns);
 };
 
 /**
@@ -435,6 +401,43 @@ Lookup.prototype.filter = function(patterns, keyPatterns) {
     }
   }
   return o;
+};
+
+/**
+ * Returns an object of all modules that have the given
+ * module as a dependency. Glob patterns may be used
+ * for filtering.
+ *
+ * ```js
+ * deps.getParents('*');
+ * ```
+ *
+ * @param  {String|Array} `patterns` Glob patterns to use for filtering.
+ * @return {Object} Object of parent modules.
+ * @api public
+ */
+
+Lookup.prototype.getParents = function(patterns) {
+  return filterObj(this.parents, patterns);
+};
+
+/**
+ * Return a list of names of all resolved packages from node_modules
+ * that match the given glob patterns. If no pattern is provided the
+ * entire list is returned.
+ *
+ * ```js
+ * deps.names('fs-*');
+ * //=> ['fs-utils']
+ * ```
+ *
+ * @param {String|Array} `patterns` Glob patterns to use for filtering.
+ * @return {Array} Array of keys.
+ * @api public
+ */
+
+Lookup.prototype.names = function(patterns) {
+  return filterKeys(this.cache, patterns);
 };
 
 /**
