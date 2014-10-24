@@ -13,18 +13,22 @@
 
 var fs = require('fs');
 var path = require('path');
+var findup = require('findup-sync');
 var multimatch = require('multimatch');
+var filterKeys = require('filter-keys');
+var filterObj = require('filter-object');
+var deepFilter = require('deep-filter-object');
+var sortObj = require('sort-object');
 var get = require('get-value');
 var _ = require('lodash');
 var utils = require('./lib');
 
-
 /**
- * Create a new instance of `Deps`.
+ * Create a new instance of `Lookup`.
  *
  * ```js
- * var Deps = require('lookup-deps');
- * var deps = new Deps();
+ * var Lookup = require('lookup-deps');
+ * var deps = new Lookup();
  * ```
  *
  * @param {Object} `config` Optionally pass a default config object instead of `package.json`
@@ -33,16 +37,17 @@ var utils = require('./lib');
  * @api public
  */
 
-function Deps(options) {
+function Lookup(options) {
   this.options = options || {};
   this.cwd = this.options.cwd || process.cwd();
+  this.parents = {};
   this.cache = {};
   this._paths = [];
   this.init(options);
 }
 
 /**
- * Initialize Deps. Unless another config path is specified,
+ * Initialize Lookup. Unless another config path is specified,
  * the package.json in the cwd of a project is loaded.
  *
  * @param  {String} `filepath`
@@ -50,7 +55,7 @@ function Deps(options) {
  * @api private
  */
 
-Deps.prototype.init = function(options) {
+Lookup.prototype.init = function(options) {
   this.config = this.options.config || this.readPkg(this.cwd);
   this.config.path = this._cwd();
   this.tree(this.cwd);
@@ -64,7 +69,7 @@ Deps.prototype.init = function(options) {
  * @api private
  */
 
-Deps.prototype.set = function(key, value) {
+Lookup.prototype.set = function(key, value) {
   this.cache[key] = value;
   return this;
 };
@@ -77,7 +82,7 @@ Deps.prototype.set = function(key, value) {
  * @api private
  */
 
-Deps.prototype.setPkg = function(key, value) {
+Lookup.prototype.setPkg = function(key, value) {
   if (!utils.hasOwn(key)) {
     return this.set(key, value);
   }
@@ -103,7 +108,7 @@ Deps.prototype.setPkg = function(key, value) {
  * @api public
  */
 
-Deps.prototype.get = function(name, props) {
+Lookup.prototype.get = function(name, props) {
   var config = this.cache[name];
 
   if (arguments.length === 1) {
@@ -127,7 +132,7 @@ Deps.prototype.get = function(name, props) {
  * @api public
  */
 
-Deps.prototype.exists = function(name) {
+Lookup.prototype.exists = function(name) {
   return !!this.get(name);
 };
 
@@ -139,7 +144,7 @@ Deps.prototype.exists = function(name) {
  * @api private
  */
 
-Deps.prototype._toPkg = function(cwd) {
+Lookup.prototype._toPkg = function(cwd) {
   return path.resolve(cwd || process.cwd(), 'package.json');
 };
 
@@ -151,7 +156,7 @@ Deps.prototype._toPkg = function(cwd) {
  * @api private
  */
 
-Deps.prototype.dirname = function(filepath) {
+Lookup.prototype.dirname = function(filepath) {
   return utils.dirname(filepath);
 };
 
@@ -163,7 +168,7 @@ Deps.prototype.dirname = function(filepath) {
  * @api private
  */
 
-Deps.prototype._cwd = function(filepath) {
+Lookup.prototype._cwd = function(filepath) {
   return this.dirname(this._toPkg(filepath));
 };
 
@@ -175,7 +180,7 @@ Deps.prototype._cwd = function(filepath) {
  * @api private
  */
 
-Deps.prototype._deps = function(pkg) {
+Lookup.prototype._deps = function(pkg) {
   if (utils.hasOwn(pkg, 'dependencies')) {
     return pkg.dependencies;
   }
@@ -195,7 +200,7 @@ Deps.prototype._deps = function(pkg) {
  * @api public
  */
 
-Deps.prototype.depsKeys = function(config) {
+Lookup.prototype.depsKeys = function(config) {
   if (typeof config === 'string') {
     config = this.cache[config].pkg;
   }
@@ -211,13 +216,8 @@ Deps.prototype.depsKeys = function(config) {
  * @api private
  */
 
-Deps.prototype.readPkg = function(filepath) {
-  try {
-    var fp = path.resolve(filepath, 'package.json');
-    return require(fp);
-  } catch(err) {
-    return {};
-  }
+Lookup.prototype.readPkg = function(filepath) {
+  return this.tryRequire(filepath, 'package.json');
 };
 
 /**
@@ -228,9 +228,10 @@ Deps.prototype.readPkg = function(filepath) {
  * @api private
  */
 
-Deps.prototype.tryRequire = function(filepath) {
+Lookup.prototype.tryRequire = function(filepath) {
   try {
-    return require(filepath);
+    var fp = path.resolve.apply(path, arguments);
+    return require(fp);
   } catch (err) {
     return {};
   }
@@ -251,11 +252,41 @@ Deps.prototype.tryRequire = function(filepath) {
  * @api private
  */
 
-Deps.prototype.findPath = function(filepath) {
-  var name = path.basename(filepath);
+Lookup.prototype.findPath = function(filepath) {
   return utils.first(this._paths, function(fp) {
-    return name === path.basename(fp);
+    return path.basename(filepath) === path.basename(fp);
   });
+};
+
+/**
+ * Find a package.json for the given module by `name`, starting
+ * the search at the given `cwd`.
+ *
+ * @param  {String} `filepath`
+ * @return {String}
+ * @api public
+ */
+
+Lookup.prototype.findPkg = function(name, cwd) {
+  return findup('**/' + name + '/package.json', {
+    cwd: cwd
+  });
+};
+
+/**
+ * Get the parent of a module from the given absolute `filepath`.
+ *
+ * @param  {String} `filepath`
+ * @return {String}
+ * @api private
+ */
+
+Lookup.prototype.parent = function(filepath) {
+  try {
+    return utils.last(filepath, 3)[0];
+  } catch(err) {
+    return null;
+  }
 };
 
 /**
@@ -267,13 +298,23 @@ Deps.prototype.findPath = function(filepath) {
  * @api private
  */
 
-Deps.prototype.moduleRoot = function(cwd, filepath) {
-  var res = path.join(cwd, 'node_modules', filepath);
+Lookup.prototype.moduleRoot = function(cwd, fp) {
+  var res = path.join(cwd, 'node_modules', fp);
+
   if (fs.existsSync(res)) {
     this._paths.push(res);
     return utils.slashify(res);
   }
-  return this.findPath(res) || null;
+
+  res = this.findPath(res);
+  if (res) {
+    return res;
+  }
+
+  if (this.options.findup) {
+    return path.dirname(this.findPkg(fp, cwd));
+  }
+  return null;
 };
 
 /**
@@ -289,30 +330,56 @@ Deps.prototype.moduleRoot = function(cwd, filepath) {
  * @api public
  */
 
-Deps.prototype.tree = function(cwd) {
+Lookup.prototype.tree = function(cwd) {
   var pkg = this.readPkg(cwd);
   var deps = this.depsKeys(pkg);
   var tree = {};
 
   if (deps.length) {
     var len = deps.length;
-    for (var i = 0; i < len; i++) {
-      var name = deps[i];
+    var i = 0;
+
+    while (i < len) {
+      var name = deps[i++];
       var key = utils.escapeDot(name);
 
       var o = {pkg: null, deps: null, pkgpath: null};
       o.path = this.moduleRoot(cwd, name);
+
+      this.parents[key] = this.parents[key] || {};
+
       if (o.path != null) {
         o.pkgpath = path.resolve(o.path, 'package.json');
         o.pkg = this.tryRequire(o.pkgpath);
         o.deps = this.tree(o.path);
       }
 
+      var parent = this.parent(o.path);
+      this.parents[key][parent] = sortObj(o, ['path', 'pkgpath', 'deps', 'pkg']);
+
       this.setPkg(key, o);
       tree[key] = o;
     }
   }
   return tree;
+};
+
+/**
+ * Returns an object of all modules that have the given
+ * module as a dependency. Glob patterns may be used
+ * for filtering.
+ *
+ * ```js
+ * deps.getParents('*');
+ * ```
+ *
+ * @param  {String|Array} `patterns` Glob patterns to use for filtering.
+ * @return {Object} Object of parent modules.
+ * @api public
+ */
+
+Lookup.prototype.getParents = function(patterns) {
+  return filterObj(this.parents, patterns);
 };
 
 /**
@@ -325,21 +392,54 @@ Deps.prototype.tree = function(cwd) {
  * //=> ['fs-utils']
  * ```
  *
- * @param {Object} `obj` Optionally pass an object.
+ * @param {String|Array} `patterns` Glob patterns to use for filtering.
  * @return {Array} Array of keys.
  * @api public
  */
 
-Deps.prototype.names = function(patterns) {
-  var keys = Object.keys(this.cache);
-  if (arguments.length === 0) {
-    return keys;
-  }
-  return multimatch(keys, patterns);
+Lookup.prototype.names = function(patterns) {
+  return filterKeys(this.cache, patterns);
 };
 
 /**
- * Lookup a module or modules using glob patterns, and return
+ * Filter the entire `cache` object to have only packages
+ * with names that match the given glob patterns.
+ *
+ * You may also filter the keys on each object by passing
+ * additional glob patterns as a second argument.
+ *
+ * ```js
+ * deps.filter('fs-*');
+ * //=> {'fs-utils': {...}}
+ *
+ * // exclude the `readme` key from package.json objects
+ * deps.filter('fs-*', ['*', '!readme']);
+ * //=> {'fs-utils': {...}}
+ * ```
+ *
+ * @param {String|Array} `patterns` Glob patterns to use for filtering modules.
+ * @param {String|Array} `keyPatterns` Glob patterns to use for filtering the keys on each object.
+ * @return {Object} Filtered object.
+ * @api public
+ */
+
+Lookup.prototype.filter = function(patterns, keyPatterns) {
+  var pkgs = filterObj(this.cache, patterns);
+  if (keyPatterns == null) return pkgs;
+  var o = {};
+
+  var pat = arrayify(keyPatterns);
+
+  for (var key in pkgs) {
+    if (pkgs.hasOwnProperty(key)) {
+      o[key] = deepFilter(pkgs[key], _.flatten(pat));
+    }
+  }
+  return o;
+};
+
+/**
+ * Find a module or modules using glob patterns, and return
  * an object filtered to have only the specified `props`. Note
  * that `package.json` objects are stored on the `pkg` property
  * for each module.
@@ -360,7 +460,7 @@ Deps.prototype.names = function(patterns) {
  * @api public
  */
 
-Deps.prototype.find = function(patterns, props) {
+Lookup.prototype.find = function(patterns, props) {
   return _.reduce(this.names(patterns), function (acc, name) {
     acc[name] = get(this.cache[name], props) || null;
     return acc;
@@ -369,7 +469,7 @@ Deps.prototype.find = function(patterns, props) {
 
 /**
  * A convenience proxy for the `.find()` method to specifically search
- * the `pkg` object.
+ * the `pkg` object of each module on the cache.
  *
  * ```js
  * deps.lookup('for-*', 'repository.url');
@@ -385,7 +485,7 @@ Deps.prototype.find = function(patterns, props) {
  * @api public
  */
 
-Deps.prototype.lookup = function(patterns, props) {
+Lookup.prototype.lookup = function(patterns, props) {
   return this.find(patterns, 'pkg.' + props);
 };
 
@@ -402,7 +502,7 @@ Deps.prototype.lookup = function(patterns, props) {
  * @api public
  */
 
-Deps.prototype.paths = function(patterns) {
+Lookup.prototype.paths = function(patterns) {
   return this.find(patterns, 'path');
 };
 
@@ -419,7 +519,7 @@ Deps.prototype.paths = function(patterns) {
  * @api public
  */
 
-Deps.prototype.pkg = function(patterns) {
+Lookup.prototype.pkg = function(patterns) {
   return this.find(patterns, 'pkg');
 };
 
@@ -437,7 +537,7 @@ Deps.prototype.pkg = function(patterns) {
  * @api public
  */
 
-Deps.prototype.dependencies = function(patterns) {
+Lookup.prototype.dependencies = function(patterns) {
   return this.lookup(patterns, 'dependencies');
 };
 
@@ -454,7 +554,7 @@ Deps.prototype.dependencies = function(patterns) {
  * @api public
  */
 
-Deps.prototype.keywords = function(patterns) {
+Lookup.prototype.keywords = function(patterns) {
   return this.lookup(patterns, 'keywords');
 };
 
@@ -471,7 +571,7 @@ Deps.prototype.keywords = function(patterns) {
  * @api public
  */
 
-Deps.prototype.homepage = function(patterns) {
+Lookup.prototype.homepage = function(patterns) {
   return this.lookup(patterns, 'homepage');
 };
 
@@ -489,7 +589,7 @@ Deps.prototype.homepage = function(patterns) {
  * @api public
  */
 
-Deps.prototype.links = function(pattern) {
+Lookup.prototype.links = function(pattern) {
   pattern = pattern || this.config.name;
   var obj = this.lookup(pattern, 'homepage');
   var str = '';
@@ -500,9 +600,21 @@ Deps.prototype.links = function(pattern) {
   return str;
 };
 
-
 /**
- * Expose `Deps`
+ * Ensure that `val` is an array.
+ *
+ * @param  {*} `val`
+ * @return {Array}
+ * @api private
  */
 
-module.exports = Deps;
+function arrayify(val) {
+  return Array.isArray(val) ? [val] : val;
+}
+
+
+/**
+ * Expose `Lookup`
+ */
+
+module.exports = Lookup;
