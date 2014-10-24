@@ -54,7 +54,7 @@ var deps = new Deps();
 ```
 
 ## API
-### [Lookup](index.js#L40)
+### [Lookup](index.js#L39)
 
 Create a new instance of `Lookup`.
 
@@ -66,7 +66,7 @@ var Lookup = require('lookup-deps');
 var deps = new Lookup();
 ```
 
-### [.get](index.js#L111)
+### [.get](index.js#L110)
 
 Get a value from the cache.
 
@@ -84,7 +84,7 @@ deps.get('fs-utils', 'version');
 //=> '0.5.0'
 ```
 
-### [.exists](index.js#L135)
+### [.exists](index.js#L134)
 
 Check to see if a module exists (or at least is on the cache).
 
@@ -96,7 +96,7 @@ deps.exists('fs-utils');
 //=> true
 ```
 
-### [.depsKeys](index.js#L203)
+### [.depsKeys](index.js#L202)
 
 Get the keys for `dependencies` for the specified package.
 
@@ -108,7 +108,7 @@ deps.depsKeys('fs-utils');
 //=> [ 'is-absolute', 'kind-of', 'relative', ... ]
 ```
 
-### [.findPkg](index.js#L270)
+### [.findPkg](index.js#L269)
 
 * `filepath` **{String}**    
 * `returns`: {String}  

@@ -14,7 +14,6 @@
 var fs = require('fs');
 var path = require('path');
 var findup = require('findup-sync');
-var multimatch = require('multimatch');
 var filterKeys = require('filter-keys');
 var filterObj = require('filter-object');
 var deepFilter = require('deep-filter-object');
@@ -55,7 +54,7 @@ function Lookup(options) {
  * @api private
  */
 
-Lookup.prototype.init = function(options) {
+Lookup.prototype.init = function() {
   this.config = this.options.config || this.readPkg(this.cwd);
   this.config.path = this._cwd();
   this.tree(this.cwd);
@@ -223,12 +222,12 @@ Lookup.prototype.readPkg = function(filepath) {
 /**
  * Attempt to require a file, silently fail.
  *
- * @param  {Object} `pkg`
+ * @param  {String} `filepath(s)`
  * @return {Object}
  * @api private
  */
 
-Lookup.prototype.tryRequire = function(filepath) {
+Lookup.prototype.tryRequire = function() {
   try {
     var fp = path.resolve.apply(path, arguments);
     return require(fp);
