@@ -14,6 +14,7 @@
 var fs = require('fs');
 var path = require('path');
 var findup = require('look-up');
+var mdu = require('markdown-utils');
 var filterKeys = require('filter-keys');
 var filterObj = require('filter-object');
 var deepFilter = require('deep-filter-object');
@@ -597,8 +598,35 @@ Lookup.prototype.links = function(pattern) {
   var str = '';
 
   _.forOwn(obj, function (value, key) {
-    str += '[' + key + '](' + value + ')\n';
+    str += mdu.link(key, value) + '\n';
   });
+
+  return str;
+};
+
+/**
+ * Get a list of markdown-formatted links, from the
+ * `homepage` properties of the specified modules.
+ *
+ * ```js
+ * deps.relinks('fs-*');
+ * //=> [fs-utils]: https://github.com/assemble/fs-utils
+ * ```
+ *
+ * @param  {String} `patterns`
+ * @return {String}
+ * @api public
+ */
+
+Lookup.prototype.reflinks = function(pattern) {
+  pattern = pattern || this.config.name;
+  var obj = this.lookup(pattern, 'homepage');
+  var str = '';
+
+  _.forOwn(obj, function (value, key) {
+    str += mdu.reference(key, value) + '\n';
+  });
+
   return str;
 };
 
