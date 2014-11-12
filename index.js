@@ -609,7 +609,7 @@ Lookup.prototype.links = function(pattern) {
  * `homepage` properties of the specified modules.
  *
  * ```js
- * deps.relinks('fs-*');
+ * deps.reflinks('fs-*');
  * //=> [fs-utils]: https://github.com/assemble/fs-utils
  * ```
  *

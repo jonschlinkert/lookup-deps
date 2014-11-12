@@ -281,7 +281,7 @@ Get a list of markdown-formatted links, from the `homepage` properties of the sp
 * `returns`: {String}  
 
 ```js
-deps.relinks('fs-*');
+deps.reflinks('fs-*');
 //=> [fs-utils]: https://github.com/assemble/fs-utils
 ```
 
@@ -293,8 +293,8 @@ deps.relinks('fs-*');
 + [twitter/jonschlinkert](http://twitter.com/jonschlinkert) 
 
 ## License
-Copyright (c) 2014 Jon Schlinkert  
-Released under the MIT license
+Copyright (c) 2014 undefined  
+Released under the 
 
 ***
 
