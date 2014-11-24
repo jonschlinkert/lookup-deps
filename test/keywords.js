@@ -15,8 +15,7 @@ var deps = new Deps({root: 'test/fixtures'});
 var pkg = require(path.resolve(__dirname, '../package'));
 
 describe('keywords', function () {
-  it('should return keywords arrays for the given names.', function () {
-    deps.keywords('fs-utils')['fs-utils'].should.be.an.array;
-    deps.keywords('fs-utils')['fs-utils'].length.should.equal(10);
+  it('should return the `keywords` property for the given module.', function () {
+    deps.keywords('lodash')['lodash'].should.be.an.array;
   });
 });
