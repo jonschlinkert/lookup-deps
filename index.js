@@ -46,6 +46,9 @@ var utils = require('./lib');
 function Lookup(options) {
   this.options = options || {};
   this.cwd = this.options.cwd || process.cwd();
+  this.limit = this.options.limit || 25;
+  this.versions = {};
+  this.history = {};
   this.parents = {};
   this.cache = {};
   this._paths = [];
@@ -355,11 +358,13 @@ Lookup.prototype.tree = function(cwd) {
     while (len--) {
       var name = deps[len];
       var key = utils.escapeDot(name);
+      this.history[key] = this.history[key] || 0;
 
       var o = {pkg: null, deps: null, pkgpath: null};
       o.path = this.moduleRoot(cwd, name);
 
-      if (o.path != null) {
+      if (o.path != null && this.history[key] < this.limit) {
+        this.history[key]++;
         o.pkgpath = path.resolve(o.path, 'package.json');
         o.pkg = this.tryRequire(o.pkgpath);
         o.deps = this.tree(o.path);
