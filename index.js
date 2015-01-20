@@ -1,7 +1,7 @@
 /*!
  * lookup-deps <https://github.com/jonschlinkert/lookup-deps>
  *
- * Copyright (c) 2014 Jon Schlinkert, contributors.
+ * Copyright (c) 2014-2015, Jon Schlinkert.
  * Licensed under the MIT License
  */
 
@@ -19,6 +19,7 @@ var filterKeys = require('filter-keys');
 var filterObj = require('filter-object');
 var deepFilter = require('deep-filter-object');
 var sortObj = require('sort-object');
+var forOwn = require('for-own');
 var get = require('get-value');
 var _ = require('lodash');
 var utils = require('./lib');
@@ -340,10 +341,9 @@ Lookup.prototype.tree = function(cwd) {
 
   if (deps.length) {
     var len = deps.length;
-    var i = 0;
 
-    while (i < len) {
-      var name = deps[i++];
+    while (len--) {
+      var name = deps[len];
       var key = utils.escapeDot(name);
 
       var o = {pkg: null, deps: null, pkgpath: null};
@@ -464,7 +464,7 @@ Lookup.prototype.names = function(patterns) {
  */
 
 Lookup.prototype.find = function(patterns, props) {
-  return _.reduce(this.names(patterns), function (acc, name) {
+  return this.names(patterns).reduce(function (acc, name) {
     acc[name] = get(this.cache[name], props) || null;
     return acc;
   }.bind(this), {});
@@ -597,7 +597,7 @@ Lookup.prototype.links = function(pattern) {
   var obj = this.lookup(pattern, 'homepage');
   var str = '';
 
-  _.forOwn(obj, function (value, key) {
+  forOwn(obj, function (value, key) {
     str += mdu.link(key, value) + '\n';
   });
 
@@ -623,7 +623,7 @@ Lookup.prototype.reflinks = function(pattern) {
   var obj = this.lookup(pattern, 'homepage');
   var str = '';
 
-  _.forOwn(obj, function (value, key) {
+  forOwn(obj, function (value, key) {
     str += mdu.reference(key, value) + '\n';
   });
 
