@@ -1,7 +1,7 @@
 /*!
  * lookup-deps <https://github.com/jonschlinkert/lookup-deps>
  *
- * Copyright (c) 2014 Jon Schlinkert, contributors.
+ * Copyright (c) 2014-2015, Jon Schlinkert.
  * Licensed under the MIT License
  */
 
@@ -16,6 +16,6 @@ var pkg = require(path.resolve(__dirname, '../package'));
 
 describe('keywords', function () {
   it('should return the `keywords` property for the given module.', function () {
-    deps.keywords('lodash')['lodash'].should.be.an.array;
+    deps.keywords('for-own')['for-own'].should.be.an.array;
   });
 });
