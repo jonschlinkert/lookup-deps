@@ -52,7 +52,7 @@ var deps = new Deps();
 ```
 
 ## API
-### [Lookup](index.js#L41)
+### [Lookup](index.js#L46)
 
 Create a new instance of `Lookup`.
 
@@ -64,7 +64,7 @@ var Lookup = require('lookup-deps');
 var deps = new Lookup();
 ```
 
-### [.get](index.js#L112)
+### [.get](index.js#L117)
 
 Get a value from the cache.
 
@@ -74,15 +74,15 @@ Get a value from the cache.
 
 ```js
 // get an entire package.json
-deps.get('fs-utils');
-//=> { pkg: { name: 'fs-utils', version: '0.5.0', ... }
+deps.get('markdown-utils');
+//=> { pkg: { name: 'markdown-utils', version: '0.3.0', ... }
 
 // or, get a specific value
-deps.get('fs-utils', 'version');
-//=> '0.5.0'
+deps.get('markdown-utils', 'version');
+//=> '0.3.0'
 ```
 
-### [.exists](index.js#L136)
+### [.exists](index.js#L141)
 
 Check to see if a module exists (or at least is on the cache).
 
@@ -90,11 +90,11 @@ Check to see if a module exists (or at least is on the cache).
 * `returns`: {String}  
 
 ```js
-deps.exists('fs-utils');
+deps.exists('markdown-utils');
 //=> true
 ```
 
-### [.depsKeys](index.js#L204)
+### [.depsKeys](index.js#L212)
 
 Get the keys for `dependencies` for the specified package.
 
@@ -102,11 +102,11 @@ Get the keys for `dependencies` for the specified package.
 * `returns`: {Object}  
 
 ```js
-deps.depsKeys('fs-utils');
+deps.depsKeys('markdown-utils');
 //=> [ 'is-absolute', 'kind-of', 'relative', ... ]
 ```
 
-### [.findPkg](index.js#L271)
+### [.findPkg](index.js#L281)
 
 * `filepath` **{String}**    
 * `returns`: {String}  
@@ -114,7 +114,7 @@ deps.depsKeys('fs-utils');
 Find a package.json for the given module by `name`, starting
 the search at the given `cwd`.
 
-### [.tree](index.js#L337)
+### [.tree](index.js#L347)
 
 Build a dependency tree by recursively reading in package.json files for projects in node_modules.
 
@@ -125,7 +125,7 @@ Build a dependency tree by recursively reading in package.json files for project
 deps.tree('./');
 ```
 
-### [.filter](index.js#L392)
+### [.filter](index.js#L402)
 
 Filter the entire `cache` object to have only packages with names that match the given glob patterns.
 
@@ -137,15 +137,15 @@ You may also filter the keys on each object by passing
 additional glob patterns as a second argument.
 
 ```js
-deps.filter('fs-*');
-//=> {'fs-utils': {...}}
+deps.filter('markdown-*');
+//=> {'markdown-utils': {...}}
 
 // exclude the `readme` key from package.json objects
-deps.filter('fs-*', ['*', '!readme']);
-//=> {'fs-utils': {...}}
+deps.filter('markdown-*', ['*', '!readme']);
+//=> {'markdown-utils': {...}}
 ```
 
-### [.getParents](index.js#L421)
+### [.getParents](index.js#L431)
 
 Returns an object of all modules that have the given module as a dependency. Glob patterns may be used for filtering.
 
@@ -156,7 +156,7 @@ Returns an object of all modules that have the given module as a dependency. Glo
 deps.getParents('*');
 ```
 
-### [.names](index.js#L440)
+### [.names](index.js#L450)
 
 Return a list of names of all resolved packages from node_modules that match the given glob patterns. If no pattern is provided the entire list is returned.
 
@@ -164,11 +164,11 @@ Return a list of names of all resolved packages from node_modules that match the
 * `returns` **{Array}**: Array of keys.  
 
 ```js
-deps.names('fs-*');
-//=> ['fs-utils']
+deps.names('markdown-*');
+//=> ['markdown-utils']
 ```
 
-### [.find](index.js#L466)
+### [.find](index.js#L476)
 
 Find a module or modules using glob patterns, and return an object filtered to have only the specified `props`. Note that `package.json` objects are stored on the `pkg` property for each module.
 
@@ -186,7 +186,7 @@ deps.find('for-*', 'pkg.repository.url');
 //   'for-in': 'git://github.com/jonschlinkert/for-in.git' }
 ```
 
-### [.lookup](index.js#L491)
+### [.lookup](index.js#L501)
 
 A convenience proxy for the `.find()` method to specifically search the `pkg` object of each module on the cache.
 
@@ -202,7 +202,7 @@ deps.lookup('for-*', 'repository.url');
 //   'for-in': 'git://github.com/jonschlinkert/for-in.git' }
 ```
 
-### [.paths](index.js#L508)
+### [.paths](index.js#L519)
 
 Get the path to a module or modules, relative to the current working directory. Glob patterns may be used.
 
@@ -213,7 +213,7 @@ Get the path to a module or modules, relative to the current working directory. 
 deps.paths('*');
 ```
 
-### [.pkg](index.js#L525)
+### [.pkg](index.js#L536)
 
 Get the package.json objects for the given module or modules. Glob patterns may be used.
 
@@ -221,10 +221,10 @@ Get the package.json objects for the given module or modules. Glob patterns may 
 * `returns`: {String}  
 
 ```js
-deps.pkg('fs-utils');
+deps.pkg('markdown-utils');
 ```
 
-### [.dependencies](index.js#L543)
+### [.dependencies](index.js#L554)
 
 Get the `dependencies` for the given modules. Glob patterns may be used.
 
@@ -236,7 +236,19 @@ deps.dependencies('multi*');
 //=> { multimatch: { 'array-differ': '^1.0.0', ... } }
 ```
 
-### [.keywords](index.js#L560)
+### [.devDependencies](index.js#L572)
+
+Get the `devDependencies` for the given modules. Glob patterns may be used.
+
+* `patterns` **{String}**    
+* `returns`: {Object}  
+
+```js
+deps.devDependencies('multi*');
+//=> { multimatch: { 'array-differ': '^1.0.0', ... } }
+```
+
+### [.keywords](index.js#L589)
 
 Get the `keywords` for the given modules.
 
@@ -248,7 +260,7 @@ deps.keywords('multi*');
 //=> { multimatch: [ 'minimatch', 'match', ... ] }
 ```
 
-### [.homepage](index.js#L577)
+### [.homepage](index.js#L606)
 
 Get the `homepage` for the specified modules.
 
@@ -256,11 +268,11 @@ Get the `homepage` for the specified modules.
 * `returns`: {String}  
 
 ```js
-deps.homepage('fs-*');
-//=> { 'fs-utils': 'https://github.com/assemble/fs-utils' }
+deps.homepage('markdown-*');
+//=> { 'markdown-utils': 'https://github.com/jonschlinkert/markdown-utils' }
 ```
 
-### [.links](index.js#L595)
+### [.links](index.js#L624)
 
 Get a list of markdown-formatted links, from the `homepage` properties of the specified modules.
 
@@ -268,11 +280,11 @@ Get a list of markdown-formatted links, from the `homepage` properties of the sp
 * `returns`: {String}  
 
 ```js
-deps.links('fs-*');
-//=> [fs-utils](https://github.com/assemble/fs-utils)
+deps.links('markdown-*');
+//=> [markdown-utils](https://github.com/jonschlinkert/markdown-utils)
 ```
 
-### [.reflinks](index.js#L621)
+### [.reflinks](index.js#L650)
 
 Get a list of markdown-formatted links, from the `homepage` properties of the specified modules.
 
@@ -280,8 +292,8 @@ Get a list of markdown-formatted links, from the `homepage` properties of the sp
 * `returns`: {String}  
 
 ```js
-deps.reflinks('fs-*');
-//=> [fs-utils]: https://github.com/assemble/fs-utils
+deps.reflinks('markdown-*');
+//=> [markdown-utils]: https://github.com/jonschlinkert/markdown-utils
 ```
 
 
@@ -300,4 +312,41 @@ Released under the MIT license
 
 _This file was generated by [verb](https://github.com/assemble/verb) on January 19, 2015._
 
-[findup-sync]: https://github.com/cowboy/node-findup-sync
+[arr-flatten]: https://github.com/jonschlinkert/arr-flatten
+[filter-object]: https://github.com/jonschlinkert/filter-object
+[isobject]: https://github.com/jonschlinkert/isobject
+[deep-filter-object]: https://github.com/jonschlinkert/deep-filter-object
+[export-files]: https://github.com/jonschlinkert/export-files
+[array-slice]: https://github.com/jonschlinkert/array-slice
+[arr-diff]: https://github.com/jonschlinkert/arr-diff
+[array-unique]: https://github.com/jonschlinkert/array-unique
+[arr-union]: https://github.com/jonschlinkert/arr-union
+[for-own]: https://github.com/jonschlinkert/for-own
+[make-iterator]: https://github.com/jonschlinkert/make-iterator
+[arr-filter]: https://github.com/jonschlinkert/arr-filter
+[is-number]: https://github.com/jonschlinkert/is-number
+[randomatic]: https://github.com/jonschlinkert/randomatic
+[repeat-element]: https://github.com/jonschlinkert/repeat-element
+[repeat-string]: https://github.com/jonschlinkert/repeat-string
+[fill-range]: https://github.com/jonschlinkert/fill-range
+[expand-range]: https://github.com/jonschlinkert/expand-range
+[preserve]: https://github.com/jonschlinkert/preserve
+[braces]: https://github.com/jonschlinkert/braces
+[filename-regex]: https://github.com/regexps/filename-regex
+[unixify]: https://github.com/jonschlinkert/unixify
+[micromatch]: https://github.com/jonschlinkert/micromatch
+[filter-keys]: https://github.com/jonschlinkert/filter-keys
+[extend-shallow]: https://github.com/jonschlinkert/extend-shallow
+[filter-values]: https://github.com/jonschlinkert/filter-values
+[kind-of]: https://github.com/jonschlinkert/kind-of
+[sort-object]: https://github.com/helpers/sort-object
+[for-in]: https://github.com/jonschlinkert/for-in
+[get-value]: https://github.com/jonschlinkert/get-value
+[is-glob]: https://github.com/jonschlinkert/is-glob
+[look-up]: https://github.com/jonschlinkert/look-up
+[markdown-utils]: https://github.com/jonschlinkert/markdown-utils
+[sort-asc]: https://github.com/jonschlinkert/sort-asc
+[sort-desc]: https://github.com/jonschlinkert/sort-desc
+
+
+<!-- deps: helper-reflinks -->
