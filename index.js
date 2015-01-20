@@ -18,10 +18,15 @@ var mdu = require('markdown-utils');
 var filterKeys = require('filter-keys');
 var filterObj = require('filter-object');
 var deepFilter = require('deep-filter-object');
+var flatten = require('arr-flatten');
 var sortObj = require('sort-object');
 var forOwn = require('for-own');
 var get = require('get-value');
-var _ = require('lodash');
+
+/**
+ * Local dependencies
+ */
+
 var utils = require('./lib');
 
 /**
@@ -95,12 +100,12 @@ Lookup.prototype.setPkg = function(key, value) {
  *
  * ```js
  * // get an entire package.json
- * deps.get('fs-utils');
- * //=> { pkg: { name: 'fs-utils', version: '0.5.0', ... }
+ * deps.get('markdown-utils');
+ * //=> { pkg: { name: 'markdown-utils', version: '0.3.0', ... }
  *
  * // or, get a specific value
- * deps.get('fs-utils', 'version');
- * //=> '0.5.0'
+ * deps.get('markdown-utils', 'version');
+ * //=> '0.3.0'
  * ```
  *
  * @param  {Object} `name` The module to get.
@@ -124,7 +129,7 @@ Lookup.prototype.get = function(name, props) {
  * the cache).
  *
  * ```js
- * deps.exists('fs-utils');
+ * deps.exists('markdown-utils');
  * //=> true
  * ```
  *
@@ -181,10 +186,13 @@ Lookup.prototype._cwd = function(filepath) {
  * @api private
  */
 
-Lookup.prototype._deps = function(pkg) {
-  if (utils.hasOwn(pkg, 'dependencies')) {
-    return pkg.dependencies;
+Lookup.prototype._deps = function(pkg, type) {
+  type = type || 'dependencies';
+
+  if (utils.hasOwn(pkg, type)) {
+    return pkg[type];
   }
+
   return {};
 };
 
@@ -192,7 +200,7 @@ Lookup.prototype._deps = function(pkg) {
  * Get the keys for `dependencies` for the specified package.
  *
  * ```js
- * deps.depsKeys('fs-utils');
+ * deps.depsKeys('markdown-utils');
  * //=> [ 'is-absolute', 'kind-of', 'relative', ... ]
  * ```
  *
@@ -201,11 +209,13 @@ Lookup.prototype._deps = function(pkg) {
  * @api public
  */
 
-Lookup.prototype.depsKeys = function(config) {
+Lookup.prototype.depsKeys = function(config, type) {
   if (typeof config === 'string') {
-    config = this.cache[config].pkg;
+    if (utils.hasOwn(this.cache, config)) {
+      config = this.cache[config].pkg;
+    }
   }
-  var deps = this._deps(config || this.config);
+  var deps = this._deps(config || this.config, type);
   return Object.keys(deps);
 };
 
@@ -375,12 +385,12 @@ Lookup.prototype.tree = function(cwd) {
  * additional glob patterns as a second argument.
  *
  * ```js
- * deps.filter('fs-*');
- * //=> {'fs-utils': {...}}
+ * deps.filter('markdown-*');
+ * //=> {'markdown-utils': {...}}
  *
  * // exclude the `readme` key from package.json objects
- * deps.filter('fs-*', ['*', '!readme']);
- * //=> {'fs-utils': {...}}
+ * deps.filter('markdown-*', ['*', '!readme']);
+ * //=> {'markdown-utils': {...}}
  * ```
  *
  * @param {String|Array} `patterns` Glob patterns to use for filtering modules.
@@ -389,16 +399,16 @@ Lookup.prototype.tree = function(cwd) {
  * @api public
  */
 
-Lookup.prototype.filter = function(patterns, keyPatterns) {
-  var pkgs = filterObj(this.cache, patterns);
+Lookup.prototype.filter = function(patterns, keyPatterns, opts) {
+  var pkgs = filterObj(this.cache, patterns, opts);
   if (keyPatterns == null) return pkgs;
-  var o = {};
 
-  var pat = arrayify(keyPatterns);
+  var pat = flatten(arrayify(keyPatterns));
+  var o = {};
 
   for (var key in pkgs) {
     if (pkgs.hasOwnProperty(key)) {
-      o[key] = deepFilter(pkgs[key], _.flatten(pat));
+      o[key] = deepFilter(pkgs[key], pat, opts);
     }
   }
   return o;
@@ -428,8 +438,8 @@ Lookup.prototype.getParents = function(patterns) {
  * entire list is returned.
  *
  * ```js
- * deps.names('fs-*');
- * //=> ['fs-utils']
+ * deps.names('markdown-*');
+ * //=> ['markdown-utils']
  * ```
  *
  * @param {String|Array} `patterns` Glob patterns to use for filtering.
@@ -438,7 +448,7 @@ Lookup.prototype.getParents = function(patterns) {
  */
 
 Lookup.prototype.names = function(patterns) {
-  return filterKeys(this.cache, patterns);
+  return filterKeys(this.cache, patterns).sort();
 };
 
 /**
@@ -489,7 +499,8 @@ Lookup.prototype.find = function(patterns, props) {
  */
 
 Lookup.prototype.lookup = function(patterns, props) {
-  return this.find(patterns, 'pkg.' + props);
+  var res = this.find(patterns, 'pkg.' + props);
+  return Object.keys(res).length ? res : null;
 };
 
 /**
@@ -514,7 +525,7 @@ Lookup.prototype.paths = function(patterns) {
  * Glob patterns may be used.
  *
  * ```js
- * deps.pkg('fs-utils');
+ * deps.pkg('markdown-utils');
  * ```
  *
  * @param  {String} `patterns`
@@ -545,6 +556,24 @@ Lookup.prototype.dependencies = function(patterns) {
 };
 
 /**
+ * Get the `devDependencies` for the given modules. Glob patterns
+ * may be used.
+ *
+ * ```js
+ * deps.devDependencies('multi*');
+ * //=> { multimatch: { 'array-differ': '^1.0.0', ... } }
+ * ```
+ *
+ * @param  {String} `patterns`
+ * @return {Object}
+ * @api public
+ */
+
+Lookup.prototype.devDependencies = function(patterns) {
+  return this.lookup(patterns, 'devDependencies');
+};
+
+/**
  * Get the `keywords` for the given modules.
  *
  * ```js
@@ -565,8 +594,8 @@ Lookup.prototype.keywords = function(patterns) {
  * Get the `homepage` for the specified modules.
  *
  * ```js
- * deps.homepage('fs-*');
- * //=> { 'fs-utils': 'https://github.com/assemble/fs-utils' }
+ * deps.homepage('markdown-*');
+ * //=> { 'markdown-utils': 'https://github.com/jonschlinkert/markdown-utils' }
  * ```
  *
  * @param  {String} `patterns`
@@ -583,8 +612,8 @@ Lookup.prototype.homepage = function(patterns) {
  * `homepage` properties of the specified modules.
  *
  * ```js
- * deps.links('fs-*');
- * //=> [fs-utils](https://github.com/assemble/fs-utils)
+ * deps.links('markdown-*');
+ * //=> [markdown-utils](https://github.com/jonschlinkert/markdown-utils)
  * ```
  *
  * @param  {String} `patterns`
@@ -609,8 +638,8 @@ Lookup.prototype.links = function(pattern) {
  * `homepage` properties of the specified modules.
  *
  * ```js
- * deps.reflinks('fs-*');
- * //=> [fs-utils]: https://github.com/assemble/fs-utils
+ * deps.reflinks('markdown-*');
+ * //=> [markdown-utils]: https://github.com/jonschlinkert/markdown-utils
  * ```
  *
  * @param  {String} `patterns`
