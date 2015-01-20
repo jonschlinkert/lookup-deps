@@ -1,7 +1,7 @@
 {
   "name": "lookup-deps",
   "description": "Simple API for getting metadata from locally installed npm packages (in `node_modules`).",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "homepage": "https://github.com/jonschlinkert/lookup-deps",
   "author": {
     "name": "Jon Schlinkert",
@@ -26,18 +26,19 @@
     "test": "mocha -R spec"
   },
   "dependencies": {
-    "deep-filter-object": "^0.1.0",
+    "arr-flatten": "^0.2.1",
+    "deep-filter-object": "^1.0.0",
     "export-files": "^0.1.4",
     "filter-keys": "^1.0.1",
-    "filter-object": "^1.0.1",
+    "filter-object": "^1.1.0",
     "for-own": "^0.1.2",
     "get-value": "^0.3.2",
-    "look-up": "^0.4.1",
+    "look-up": "^0.5.0",
     "markdown-utils": "^0.3.0",
     "sort-object": "^0.3.2"
   },
   "devDependencies": {
-    "lodash": "^2.4.1",
+    "helper-reflinks": "^0.2.0",
     "mocha": "*",
     "should": "^4.3.0"
   },
